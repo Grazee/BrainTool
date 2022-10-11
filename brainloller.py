@@ -1,8 +1,7 @@
 import sys
 import argparse
-import numpy as np
+import brainfuck
 from PIL import Image
-import matplotlib.pyplot as plt
 
 color_map = {
     (255, 0, 0): ">",  # red
@@ -29,58 +28,6 @@ code_map = {
     "R": (0, 255, 255),
     "L": (0, 128, 128)
 }
-
-def draw_img(img, bgr=False):
-    plt.figure(figsize=(10, 14))
-    plt.axis('off')
-    plt.imshow(img)
-    plt.show()
-
-def load_img(path):
-    img = Image.open(path)
-    return img
-    # img = cv2.imread(path)
-    # b, g, r = cv2.split(img) # по умолчанию cv2 почему-то отдает цвета в порядке BGR вместо RGB
-    # new_image = cv2.merge([r, g, b])
-    # return new_image
-
-def save_img(name, image, exp = 'png'):
-    name = '{}.{}'.format(name, exp)
-    if '.' in name:
-        name = '{}'.format(name)
-    cv2.imwrite(name,image[:,:,::-1])
-    print(name + " saved!")
-
-def change_img(old, img):
-    x = old.shape[0]
-    y = old.shape[1]
-    old = old.reshape(x*y, 3)
-    img = img.reshape(img.shape[1], 3)
-    for i in range(min(img.shape[0], old.shape[0]//10)):
-        old[i] = img[i]
-    return old.reshape(x,y,3)
-
-def code_to_img(code):
-    res = []
-    for i in code:
-        for j in d.keys():
-            if d[j] == i:
-                res.append((j))
-                break
-    img = np.array([res])
-    return img
-
-
-def encod(image_name, bfcode, new_name = 'empty', need_save = 1):
-    if new_name == 'empty':
-        new_name = image_name[:-4] + '_encoded'
-    old_img = load_img(image_name)
-    new_img = code_to_img(bfcode)
-    img = change_img(old_img, new_img)
-    if not need_save:
-        return img
-    save_img(new_name, img)
-    return "Encode successful"
 
 def encode(bf_path, img_path, width):
     f_bf = open(bf_path, 'r')
@@ -109,7 +56,7 @@ def encode(bf_path, img_path, width):
                 img.putpixel((x, y), code_map[bf[code_index]])
                 code_index += 1
                 if code_index >= length:
-                    img.save(open(img_path, 'wb'))
+
                     return
 
             # turning
@@ -125,13 +72,12 @@ def encode(bf_path, img_path, width):
                 img.putpixel((x, y), code_map[bf[code_index]])
                 code_index += 1
                 if code_index >= length:
-                    img.save(open(img_path, 'wb'))                    
-                    return
+                    return img
 
             # turning
             img.putpixel((0, y), code_map['L'])    
     
-def decode(img_path, out_path):
+def decode(img_path):
     img = Image.open(img_path)
     
     res = ''
@@ -162,9 +108,7 @@ def decode(img_path, out_path):
         elif direction == 3:
             y -= 1
 
-    with open(out_path, 'w') as f_out:
-        f_out.write(res)
-        f_out.close()
+    return res
 
 
 if __name__ == '__main__':
@@ -172,6 +116,7 @@ if __name__ == '__main__':
     Brainloller in python to convert brainf**k code to or from image.
 
 example:
+    python3 brainloller.py run -i [image_file]    
     python3 brainloller.py encode -i [bf_code_file] -o [out_image] -w [target_image_width]
     python3 brainloller.py decode -i [image_file] -o [bf_code_file]
     """
@@ -190,11 +135,26 @@ example:
     args = parser.parse_args()
 
     if usage == 'encode' and args.in_file and args.out_file and args.img_width:
-        encode(args.in_file,
-               args.out_file,
-               int(args.img_width))
+        # encdeo bf to image
+        img = encode(args.in_file,
+                     int(args.img_width))
+        
+        # save image to file
+        img.save(open(args.out_file, 'wb'))
     elif usage == 'decode' and args.in_file and args.out_file:
-        decode(args.in_file,
-               args.out_file)
+        # decode bf from image
+        res = decode(args.in_file)
+        
+        # save result to file
+        with open(args.out_file, 'w') as f_out:
+            f_out.write(res)
+            f_out.close()        
+    elif usage == 'run' and args.in_file:
+        # decode bf from image
+        bf = decode(args.in_file)
+
+        # compile bf code
+        res = brainfuck.evaluate(bf)
+        print(res)
     else:
         parser.print_help()
